@@ -24,24 +24,41 @@ export interface Order {
   id: string;
   orderNumber: string;
   customer: string;
+  phone?: string;
   customerAvatar?: string;
   items: number;
   total: number;
   status: OrderStatus;
+  paymentStatus: PaymentStatus;
   deliveryAddress: string;
   createdAt: string;
   deliveryTime?: string;
   paymentMethod: string;
   isBulk: boolean;
+  orderedProducts?: OrderedProduct[];
 }
 
 export type OrderStatus =
   | 'Placed'
+  | 'Confirmed'
   | 'Packed'
-  | 'Out for Delivery'
+  | 'In Transit'
   | 'Delivered'
-  | 'Cancelled'
-  | 'In Transit';
+  | 'Cancelled';
+
+export type PaymentStatus =
+  | 'Paid'
+  | 'Pending'
+  | 'Failed'
+  | 'Refunded';
+
+export interface OrderedProduct {
+  productId: string;
+  name: string;
+  quantity: number;
+  price: number;
+  image: string;
+}
 
 export interface Product {
   id: string;

@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { X, AlertCircle, RefreshCw } from 'lucide-react';
 import type { Product } from '../../types';
-import { cn } from '../../../lib/utils';
 
 interface InventoryManagerProps {
   open: boolean;

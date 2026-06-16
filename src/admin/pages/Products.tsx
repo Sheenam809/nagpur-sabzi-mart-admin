@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Search, Plus, Package, Star, TrendingUp, MoreHorizontal, X, AlertCircle } from 'lucide-react';
+import { Search, Plus, Package, Star, TrendingUp, MoreHorizontal } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
