@@ -66,22 +66,51 @@ export const topProducts: TopProduct[] = [
 ];
 
 export const recentOrders: Order[] = [
-  { id: '1', orderNumber: 'NSM-2847', customer: 'Priya Sharma', items: 4, total: 248, status: 'Delivered', deliveryAddress: 'Dharampeth, Nagpur', createdAt: '2026-06-15T09:30:00', paymentMethod: 'UPI', isBulk: false },
-  { id: '2', orderNumber: 'NSM-2846', customer: 'Rahul Deshmukh', items: 2, total: 89, status: 'Out for Delivery', deliveryAddress: 'Sitabuldi, Nagpur', createdAt: '2026-06-15T09:10:00', paymentMethod: 'COD', isBulk: false },
-  { id: '3', orderNumber: 'NSM-2845', customer: 'Anita Wankhede', items: 7, total: 432, status: 'Packed', deliveryAddress: 'Civil Lines, Nagpur', createdAt: '2026-06-15T08:55:00', paymentMethod: 'Card', isBulk: false },
-  { id: '4', orderNumber: 'NSM-2844', customer: 'Vikram Nair', items: 1, total: 45, status: 'Placed', deliveryAddress: 'Ramdaspeth, Nagpur', createdAt: '2026-06-15T08:40:00', paymentMethod: 'Wallet', isBulk: false },
-  { id: '5', orderNumber: 'NSM-2843', customer: 'Sunita Patel', items: 3, total: 176, status: 'Cancelled', deliveryAddress: 'Pratap Nagar, Nagpur', createdAt: '2026-06-15T08:20:00', paymentMethod: 'UPI', isBulk: false },
-  { id: '6', orderNumber: 'NSM-2842', customer: 'Deepak Joshi', items: 5, total: 315, status: 'Delivered', deliveryAddress: 'Manewada, Nagpur', createdAt: '2026-06-15T07:55:00', paymentMethod: 'UPI', isBulk: false },
+  { id: '1', orderNumber: 'NSM-2847', customer: 'Priya Sharma', phone: '+91 98765 43210', items: 4, total: 248, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Dharampeth, Nagpur', createdAt: '2026-06-15T09:30:00', paymentMethod: 'UPI', isBulk: false, orderedProducts: [
+    { productId: 'p1', name: 'Fresh Tomatoes', quantity: 2, price: 80, image: 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?w=60&h=60&fit=crop' },
+    { productId: 'p3', name: 'Potatoes', quantity: 1, price: 30, image: 'https://images.pexels.com/photos/144248/potatoes-vegetables-erdfrucht-wood-144248.jpeg?w=60&h=60&fit=crop' },
+    { productId: 'p5', name: 'Green Capsicum', quantity: 1, price: 60, image: 'https://images.pexels.com/photos/175834/pexels-photo-175834.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '2', orderNumber: 'NSM-2846', customer: 'Rahul Deshmukh', phone: '+91 87654 32109', items: 2, total: 89, status: 'In Transit', paymentStatus: 'Pending', deliveryAddress: 'Sitabuldi, Nagpur', createdAt: '2026-06-15T09:10:00', paymentMethod: 'COD', isBulk: false, orderedProducts: [
+    { productId: 'p2', name: 'Yellow Onions', quantity: 2, price: 35, image: 'https://images.pexels.com/photos/4197444/pexels-photo-4197444.jpeg?w=60&h=60&fit=crop' },
+    { productId: 'p6', name: 'English Cucumber', quantity: 3, price: 20, image: 'https://images.pexels.com/photos/2329440/pexels-photo-2329440.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '3', orderNumber: 'NSM-2845', customer: 'Anita Wankhede', phone: '+91 76543 21098', items: 7, total: 432, status: 'Packed', paymentStatus: 'Paid', deliveryAddress: 'Civil Lines, Nagpur', createdAt: '2026-06-15T08:55:00', paymentMethod: 'Card', isBulk: false, orderedProducts: [
+    { productId: 'p1', name: 'Fresh Tomatoes', quantity: 3, price: 80, image: 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?w=60&h=60&fit=crop' },
+    { productId: 'p7', name: 'Alphonso Mango', quantity: 1, price: 180, image: 'https://images.pexels.com/photos/2294471/pexels-photo-2294471.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '4', orderNumber: 'NSM-2844', customer: 'Vikram Nair', phone: '+91 65432 10987', items: 1, total: 45, status: 'Placed', paymentStatus: 'Pending', deliveryAddress: 'Ramdaspeth, Nagpur', createdAt: '2026-06-15T08:40:00', paymentMethod: 'Wallet', isBulk: false, orderedProducts: [
+    { productId: 'p8', name: 'Bananas', quantity: 1, price: 45, image: 'https://images.pexels.com/photos/1093038/pexels-photo-1093038.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '5', orderNumber: 'NSM-2843', customer: 'Sunita Patel', phone: '+91 54321 09876', items: 3, total: 176, status: 'Cancelled', paymentStatus: 'Refunded', deliveryAddress: 'Pratap Nagar, Nagpur', createdAt: '2026-06-15T08:20:00', paymentMethod: 'UPI', isBulk: false, orderedProducts: [
+    { productId: 'p2', name: 'Yellow Onions', quantity: 1, price: 35, image: 'https://images.pexels.com/photos/4197444/pexels-photo-4197444.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '6', orderNumber: 'NSM-2842', customer: 'Deepak Joshi', phone: '+91 77665 54433', items: 5, total: 315, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Manewada, Nagpur', createdAt: '2026-06-15T07:55:00', paymentMethod: 'UPI', isBulk: false, orderedProducts: [
+    { productId: 'p10', name: 'Fresh Ginger', quantity: 1, price: 80, image: 'https://images.pexels.com/photos/4198019/pexels-photo-4198019.jpeg?w=60&h=60&fit=crop' },
+  ] },
 ];
 
 export const allOrders: Order[] = [
   ...recentOrders,
-  { id: '7', orderNumber: 'NSM-2841', customer: 'Kavita Rane', items: 6, total: 389, status: 'Delivered', deliveryAddress: 'Shankar Nagar, Nagpur', createdAt: '2026-06-14T18:30:00', paymentMethod: 'Card', isBulk: false },
-  { id: '8', orderNumber: 'NSM-2840', customer: 'Ajay Bhosle', items: 3, total: 167, status: 'Delivered', deliveryAddress: 'Trimurti Nagar, Nagpur', createdAt: '2026-06-14T16:10:00', paymentMethod: 'UPI', isBulk: false },
-  { id: '9', orderNumber: 'NSM-2839', customer: 'Meera Kulkarni', items: 8, total: 521, status: 'Delivered', deliveryAddress: 'Sadar, Nagpur', createdAt: '2026-06-14T14:45:00', paymentMethod: 'Net Banking', isBulk: false },
-  { id: '10', orderNumber: 'NSM-2838', customer: 'Ravi Thakur', items: 2, total: 94, status: 'Cancelled', deliveryAddress: 'Wardhaman Nagar, Nagpur', createdAt: '2026-06-14T12:30:00', paymentMethod: 'COD', isBulk: false },
-  { id: '11', orderNumber: 'NSM-B0124', customer: 'Ganesh Traders', items: 24, total: 4200, status: 'Delivered', deliveryAddress: 'Itwari Market, Nagpur', createdAt: '2026-06-14T08:00:00', paymentMethod: 'Net Banking', isBulk: true },
-  { id: '12', orderNumber: 'NSM-2837', customer: 'Pooja Mishra', items: 5, total: 298, status: 'Delivered', deliveryAddress: 'Laxmi Nagar, Nagpur', createdAt: '2026-06-13T17:20:00', paymentMethod: 'UPI', isBulk: false },
+  { id: '7', orderNumber: 'NSM-2841', customer: 'Kavita Rane', phone: '+91 99887 76655', items: 6, total: 389, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Shankar Nagar, Nagpur', createdAt: '2026-06-14T18:30:00', paymentMethod: 'Card', isBulk: false, orderedProducts: [
+    { productId: 'p1', name: 'Fresh Tomatoes', quantity: 2, price: 80, image: 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '8', orderNumber: 'NSM-2840', customer: 'Ajay Bhosle', phone: '+91 88776 65544', items: 3, total: 167, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Trimurti Nagar, Nagpur', createdAt: '2026-06-14T16:10:00', paymentMethod: 'UPI', isBulk: false, orderedProducts: [
+    { productId: 'p3', name: 'Potatoes', quantity: 1, price: 30, image: 'https://images.pexels.com/photos/144248/potatoes-vegetables-erdfrucht-wood-144248.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '9', orderNumber: 'NSM-2839', customer: 'Meera Kulkarni', phone: '+91 77665 54433', items: 8, total: 521, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Sadar, Nagpur', createdAt: '2026-06-14T14:45:00', paymentMethod: 'Net Banking', isBulk: false, orderedProducts: [
+    { productId: 'p5', name: 'Green Capsicum', quantity: 2, price: 120, image: 'https://images.pexels.com/photos/175834/pexels-photo-175834.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '10', orderNumber: 'NSM-2838', customer: 'Ravi Thakur', phone: '+91 55443 32211', items: 2, total: 94, status: 'Cancelled', paymentStatus: 'Refunded', deliveryAddress: 'Wardhaman Nagar, Nagpur', createdAt: '2026-06-14T12:30:00', paymentMethod: 'COD', isBulk: false, orderedProducts: [
+    { productId: 'p2', name: 'Yellow Onions', quantity: 2, price: 35, image: 'https://images.pexels.com/photos/4197444/pexels-photo-4197444.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '11', orderNumber: 'NSM-B0124', customer: 'Ganesh Traders', phone: '+91 99887 76655', items: 24, total: 4200, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Itwari Market, Nagpur', createdAt: '2026-06-14T08:00:00', paymentMethod: 'Net Banking', isBulk: true, orderedProducts: [
+    { productId: 'p1', name: 'Fresh Tomatoes', quantity: 10, price: 400, image: 'https://images.pexels.com/photos/1327838/pexels-photo-1327838.jpeg?w=60&h=60&fit=crop' },
+    { productId: 'p2', name: 'Yellow Onions', quantity: 8, price: 280, image: 'https://images.pexels.com/photos/4197444/pexels-photo-4197444.jpeg?w=60&h=60&fit=crop' },
+  ] },
+  { id: '12', orderNumber: 'NSM-2837', customer: 'Pooja Mishra', phone: '+91 66554 43322', items: 5, total: 298, status: 'Delivered', paymentStatus: 'Paid', deliveryAddress: 'Laxmi Nagar, Nagpur', createdAt: '2026-06-13T17:20:00', paymentMethod: 'UPI', isBulk: false, orderedProducts: [
+    { productId: 'p8', name: 'Bananas', quantity: 2, price: 90, image: 'https://images.pexels.com/photos/1093038/pexels-photo-1093038.jpeg?w=60&h=60&fit=crop' },
+  ] },
 ];
 
 export const products: Product[] = [
@@ -119,7 +148,7 @@ export const reviews: Review[] = [
 
 export const bulkOrders: BulkOrder[] = [
   { id: 'b1', orderNumber: 'NSM-B0124', customer: 'Ganesh Traders', businessName: 'Ganesh Wholesale Mart', items: 24, total: 42000, status: 'Delivered', deliveryDate: '2026-06-14', createdAt: '2026-06-13T08:00:00', contactPhone: '+91 99887 76655' },
-  { id: 'b2', orderNumber: 'NSM-B0123', customer: 'Lakshmi Hotel Supplies', businessName: 'Lakshmi Hotel Chain', items: 48, total: 78500, status: 'Out for Delivery', deliveryDate: '2026-06-15', createdAt: '2026-06-14T09:30:00', contactPhone: '+91 88776 65544' },
+  { id: 'b2', orderNumber: 'NSM-B0123', customer: 'Lakshmi Hotel Supplies', businessName: 'Lakshmi Hotel Chain', items: 48, total: 78500, status: 'In Transit', deliveryDate: '2026-06-15', createdAt: '2026-06-14T09:30:00', contactPhone: '+91 88776 65544' },
   { id: 'b3', orderNumber: 'NSM-B0122', customer: 'Shri Ram Caterers', businessName: 'Shri Ram Events', items: 32, total: 56200, status: 'Packed', deliveryDate: '2026-06-16', createdAt: '2026-06-14T14:00:00', contactPhone: '+91 77665 54433' },
   { id: 'b4', orderNumber: 'NSM-B0121', customer: 'City Canteen', businessName: 'City Corporate Canteen', items: 18, total: 28400, status: 'Placed', deliveryDate: '2026-06-17', createdAt: '2026-06-15T07:00:00', contactPhone: '+91 66554 43322' },
   { id: 'b5', orderNumber: 'NSM-B0120', customer: 'Orange City Diner', businessName: 'Orange City Restaurants', items: 60, total: 95000, status: 'Delivered', deliveryDate: '2026-06-12', createdAt: '2026-06-11T10:00:00', contactPhone: '+91 55443 32211' },
