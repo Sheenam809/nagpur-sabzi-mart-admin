@@ -1,19 +1,37 @@
 import { useState } from 'react';
-import { Search, Plus, Package, Star, TrendingUp } from 'lucide-react';
+import { Search, Plus, Package, Star, TrendingUp, MoreHorizontal, X, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { products } from '../data/mockData';
+import { products as initialProducts } from '../data/mockData';
 import type { Product } from '../types';
 import { cn } from '../../lib/utils';
+import AddProductDialog from '../components/products/AddProductDialog';
+import EditProductDialog from '../components/products/EditProductDialog';
+import ProductDetailsDrawer from '../components/products/ProductDetailsDrawer';
+import DeleteProductConfirm from '../components/products/DeleteProductConfirm';
+import CategoryManager from '../components/products/CategoryManager';
+import InventoryManager from '../components/products/InventoryManager';
 
 const categories = ['All', 'Vegetables', 'Fruits', 'Leafy Greens', 'Spices'];
 
 export default function Products() {
+  const [products, setProducts] = useState(initialProducts);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
+  
+  // Dialog/Drawer states
+  const [showAddDialog, setShowAddDialog] = useState(false);
+  const [showEditDialog, setShowEditDialog] = useState(false);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
+  const [showCategoryManager, setShowCategoryManager] = useState(false);
+  const [showInventoryManager, setShowInventoryManager] = useState(false);
+  const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
   const filtered = products.filter(p => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
     const matchCat = categoryFilter === 'All' || p.category === categoryFilter;
@@ -27,6 +45,47 @@ export default function Products() {
     { label: 'Low Stock', value: products.filter(p => p.status === 'low_stock').length.toString(), icon: Package, color: 'text-amber-600' },
     { label: 'Out of Stock', value: products.filter(p => p.status === 'out_of_stock').length.toString(), icon: Package, color: 'text-red-600' },
   ];
+
+  const handleAddProduct = (newProduct: Omit<Product, 'id'>) => {
+    const product: Product = {
+      ...newProduct,
+      id: `p${Date.now()}`,
+    };
+    setProducts([...products, product]);
+    setShowAddDialog(false);
+  };
+
+  const handleEditProduct = (updatedProduct: Product) => {
+    setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
+    setShowEditDialog(false);
+    setSelectedProduct(null);
+  };
+
+  const handleDeleteProduct = () => {
+    if (selectedProduct) {
+      setProducts(products.filter(p => p.id !== selectedProduct.id));
+      setShowDeleteConfirm(false);
+      setSelectedProduct(null);
+    }
+  };
+
+  const handleViewDetails = (product: Product) => {
+    setSelectedProduct(product);
+    setShowDetailsDrawer(true);
+    setOpenMenuId(null);
+  };
+
+  const handleEditClick = (product: Product) => {
+    setSelectedProduct(product);
+    setShowEditDialog(true);
+    setOpenMenuId(null);
+  };
+
+  const handleDeleteClick = (product: Product) => {
+    setSelectedProduct(product);
+    setShowDeleteConfirm(true);
+    setOpenMenuId(null);
+  };
 
   const columns: Column<Product>[] = [
     {
@@ -68,13 +127,18 @@ export default function Products() {
       align: 'center',
       render: (row) => (
         <div className="text-center">
-          <p className={cn(
-            'text-sm font-semibold',
-            row.stock === 0 ? 'text-red-600 dark:text-red-400' :
-            row.stock < 20 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
-          )}>
-            {row.stock}
-          </p>
+          <div className="flex items-center justify-center gap-1.5">
+            <p className={cn(
+              'text-sm font-semibold',
+              row.stock === 0 ? 'text-red-600 dark:text-red-400' :
+              row.stock < 20 ? 'text-amber-600 dark:text-amber-400' : 'text-foreground'
+            )}>
+              {row.stock}
+            </p>
+            {row.stock < 20 && row.stock > 0 && (
+              <div className="w-1.5 h-1.5 rounded-full bg-amber-500" />
+            )}
+          </div>
           <p className="text-xs text-muted-foreground">units</p>
         </div>
       ),
@@ -106,11 +170,37 @@ export default function Products() {
     {
       key: 'id',
       header: '',
-      render: (_row) => (
-        <div className="flex items-center gap-1">
-          <button className="px-2.5 h-7 text-xs font-medium rounded-lg bg-secondary hover:bg-muted transition-colors text-foreground">
-            Edit
+      align: 'right',
+      render: (row) => (
+        <div className="relative">
+          <button
+            onClick={() => setOpenMenuId(openMenuId === row.id ? null : row.id)}
+            className="p-1 hover:bg-muted rounded-lg transition-colors"
+          >
+            <MoreHorizontal className="w-4 h-4 text-muted-foreground" />
           </button>
+          {openMenuId === row.id && (
+            <div className="absolute right-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-10 min-w-[140px]">
+              <button
+                onClick={() => handleViewDetails(row)}
+                className="block w-full text-left px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors first:rounded-t-lg"
+              >
+                View Details
+              </button>
+              <button
+                onClick={() => handleEditClick(row)}
+                className="block w-full text-left px-3 py-2 text-xs font-medium text-foreground hover:bg-muted transition-colors"
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDeleteClick(row)}
+                className="block w-full text-left px-3 py-2 text-xs font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors last:rounded-b-lg"
+              >
+                Delete
+              </button>
+            </div>
+          )}
         </div>
       ),
     },
@@ -122,10 +212,27 @@ export default function Products() {
         title="Products"
         description="Manage your product catalog, pricing, and inventory"
         actions={
-          <button className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm shadow-green-900/20">
-            <Plus className="w-4 h-4" />
-            Add Product
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setShowCategoryManager(true)}
+              className="px-3 py-2 rounded-xl border border-border bg-card text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              Categories
+            </button>
+            <button
+              onClick={() => setShowInventoryManager(true)}
+              className="px-3 py-2 rounded-xl border border-border bg-card text-foreground text-sm font-medium hover:bg-secondary transition-colors"
+            >
+              Inventory
+            </button>
+            <button
+              onClick={() => setShowAddDialog(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm font-medium hover:bg-primary/90 transition-colors shadow-sm shadow-green-900/20"
+            >
+              <Plus className="w-4 h-4" />
+              Add Product
+            </button>
+          </div>
         }
       />
 
@@ -200,6 +307,49 @@ export default function Products() {
             description="No products match your current filters. Try adjusting your search criteria."
           />
         }
+      />
+
+      {/* Dialogs and Drawers */}
+      <AddProductDialog
+        open={showAddDialog}
+        onOpenChange={setShowAddDialog}
+        onSubmit={handleAddProduct}
+      />
+
+      {selectedProduct && (
+        <>
+          <EditProductDialog
+            open={showEditDialog}
+            onOpenChange={setShowEditDialog}
+            product={selectedProduct}
+            onSubmit={handleEditProduct}
+          />
+
+          <ProductDetailsDrawer
+            open={showDetailsDrawer}
+            onOpenChange={setShowDetailsDrawer}
+            product={selectedProduct}
+          />
+
+          <DeleteProductConfirm
+            open={showDeleteConfirm}
+            onOpenChange={setShowDeleteConfirm}
+            product={selectedProduct}
+            onConfirm={handleDeleteProduct}
+          />
+        </>
+      )}
+
+      <CategoryManager
+        open={showCategoryManager}
+        onOpenChange={setShowCategoryManager}
+      />
+
+      <InventoryManager
+        open={showInventoryManager}
+        onOpenChange={setShowInventoryManager}
+        products={products}
+        onUpdateProducts={setProducts}
       />
     </div>
   );
