@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import CustomerDetailsDrawer from '../components/customers/CustomerDetailsDrawer';
+import EditCustomerModal from '../components/customers/EditCustomerModal';
 import { Search, Users, UserCheck, UserX, TrendingUp, Phone, Mail, MapPin } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
@@ -8,11 +10,16 @@ import { customers } from '../data/mockData';
 import type { Customer } from '../types';
 import { cn } from '../../lib/utils';
 
+
 const statusFilters = ['All', 'active', 'new', 'inactive'] as const;
 
 export default function Customers() {
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'active' | 'new' | 'inactive'>('All');
+const [showEditDialog, setShowEditDialog] = useState(false);
+  const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
+  const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
+
 
   const filtered = customers.filter(c => {
     const matchSearch = !search ||
@@ -113,14 +120,21 @@ export default function Customers() {
       render: (row) => <StatusBadge status={row.status} />,
     },
     {
-      key: 'id',
-      header: '',
-      render: (_row) => (
-        <button className="px-2.5 h-7 text-xs font-medium rounded-lg bg-secondary hover:bg-muted transition-colors text-foreground">
-          View
-        </button>
-      ),
-    },
+      
+  key: 'id',
+  header: '',
+  render: (row) => (
+    <button
+  onClick={() => {
+    setSelectedCustomer(row);
+    setShowCustomerDrawer(true);
+  }}
+  className="px-2.5 h-7 text-xs font-medium rounded-lg bg-secondary hover:bg-muted transition-colors text-foreground"
+>
+  View
+</button>
+  ),
+},
   ];
 
   return (
@@ -218,6 +232,19 @@ export default function Customers() {
           />
         }
       />
+      {selectedCustomer && (
+  <CustomerDetailsDrawer
+  open={showCustomerDrawer}
+  onOpenChange={setShowCustomerDrawer}
+  customer={selectedCustomer}
+  onEdit={() => setShowEditDialog(true)}
+/>
+)}
+<EditCustomerModal
+  open={showEditDialog}
+  customer={selectedCustomer}
+  onClose={() => setShowEditDialog(false)}
+/>
     </div>
   );
 }
