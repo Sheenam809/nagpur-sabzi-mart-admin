@@ -59,7 +59,42 @@ export default function Settings() {
     push: true,
   });
   const [saved, setSaved] = useState(false);
+const [gateways, setGateways] = useState([
+  {
+    name: 'Razorpay',
+    connected: true,
+    icon: '💳',
+    desc: 'Primary gateway for UPI, Cards, Wallets',
+  },
+  {
+    name: 'Cash on Delivery',
+    connected: true,
+    icon: '💵',
+    desc: 'Accept payments at delivery',
+  },
+  {
+    name: 'Paytm Business',
+    connected: false,
+    icon: '📱',
+    desc: 'Paytm UPI and Paytm Wallet',
+  },
+  {
+    name: 'PhonePe',
+    connected: false,
+    icon: '📞',
+    desc: 'PhonePe UPI payments',
+  },
+]);
 
+const [teamMembers] = useState([
+  {
+    name: 'Admin',
+    role: 'Super Admin',
+    email: 'admin@nagpursabzimart.in',
+  },
+]);
+
+const [zones] = useState(deliveryZones);
   const handleSave = () => {
     setSaved(true);
     setTimeout(() => setSaved(false), 2000);
@@ -201,7 +236,7 @@ export default function Settings() {
                 </button>
               </div>
               <div className="space-y-2">
-                {deliveryZones.map((zone, i) => (
+                {zones.map((zone, i) => (
                   <div key={i} className="flex items-center gap-4 p-4 rounded-xl border border-border bg-secondary/30 hover:bg-secondary/50 transition-colors">
                     <Toggle enabled={zone.active} onChange={() => {}} />
                     <div className="flex-1">
@@ -225,42 +260,48 @@ export default function Settings() {
           )}
 
           {activeSection === 'payments' && (
-            <div className="rounded-2xl border border-border bg-card p-6 space-y-4 fade-in">
-              <h3 className="text-base font-semibold text-foreground">Payment Gateways</h3>
-              {[
-                { name: 'Razorpay', status: 'connected', icon: '💳', desc: 'Primary gateway for UPI, Cards, Wallets' },
-                { name: 'Cash on Delivery', status: 'connected', icon: '💵', desc: 'Accept payments at delivery' },
-                { name: 'Paytm Business', status: 'disconnected', icon: '📱', desc: 'Paytm UPI and Paytm Wallet' },
-                { name: 'PhonePe', status: 'disconnected', icon: '📞', desc: 'PhonePe UPI payments' },
-              ].map(gw => (
-                <div key={gw.name} className="flex items-center gap-4 p-4 rounded-xl border border-border">
-                  <span className="text-2xl">{gw.icon}</span>
-                  <div className="flex-1">
-                    <div className="flex items-center gap-2">
-                      <p className="text-sm font-semibold text-foreground">{gw.name}</p>
-                      <span className={cn(
-                        'text-[10px] font-bold px-2 py-0.5 rounded-full',
-                        gw.status === 'connected'
-                          ? 'bg-green-50 text-green-700 dark:bg-green-900/30 dark:text-green-400'
-                          : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-400'
-                      )}>
-                        {gw.status === 'connected' ? '● Connected' : '○ Disconnected'}
-                      </span>
-                    </div>
-                    <p className="text-xs text-muted-foreground">{gw.desc}</p>
-                  </div>
-                  <button className={cn(
-                    'px-3 h-7 text-xs font-medium rounded-lg transition-colors',
-                    gw.status === 'connected'
-                      ? 'bg-secondary hover:bg-muted text-foreground'
-                      : 'bg-primary text-primary-foreground hover:bg-primary/90'
-                  )}>
-                    {gw.status === 'connected' ? 'Configure' : 'Connect'}
-                  </button>
-                </div>
-              ))}
-            </div>
+  <div className="rounded-2xl border border-border bg-card p-6 space-y-4 fade-in">
+    <h3 className="text-base font-semibold text-foreground">
+      Payment Gateways
+    </h3>
+
+    {gateways.map((gw) => (
+      <div
+        key={gw.name}
+        className="flex items-center gap-4 p-4 rounded-xl border border-border"
+      >
+        <span className="text-2xl">{gw.icon}</span>
+
+        <div className="flex-1">
+          <p className="font-semibold">{gw.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {gw.desc}
+          </p>
+        </div>
+
+        <button
+          onClick={() => {
+            setGateways((prev) =>
+              prev.map((g) =>
+                g.name === gw.name
+                  ? { ...g, connected: !g.connected }
+                  : g
+              )
+            );
+          }}
+          className={cn(
+            'px-3 py-1 rounded-lg text-xs font-medium',
+            gw.connected
+              ? 'bg-red-500 text-white'
+              : 'bg-green-500 text-white'
           )}
+        >
+          {gw.connected ? 'Disconnect' : 'Connect'}
+        </button>
+      </div>
+    ))}
+  </div>
+)}
 
           {activeSection === 'security' && (
             <div className="rounded-2xl border border-border bg-card p-6 space-y-5 fade-in">
@@ -295,6 +336,69 @@ export default function Settings() {
             </div>
           )}
 
+          {activeSection === 'team' && (
+  <div className="rounded-2xl border border-border bg-card p-6 space-y-4">
+    <div className="flex justify-between items-center">
+      <h3 className="text-base font-semibold">
+        Team & Roles
+      </h3>
+
+      <button
+        className="px-3 py-2 rounded-xl bg-primary text-primary-foreground text-sm"
+      >
+        Add Member
+      </button>
+    </div>
+
+    {teamMembers.map((member, index) => (
+      <div
+        key={index}
+        className="flex justify-between items-center p-4 border rounded-xl"
+      >
+        <div>
+          <p className="font-medium">{member.name}</p>
+          <p className="text-xs text-muted-foreground">
+            {member.email}
+          </p>
+        </div>
+
+        <span className="text-sm">
+          {member.role}
+        </span>
+      </div>
+    ))}
+  </div>
+)}
+{activeSection === 'appearance' && (
+  <div className="rounded-2xl border border-border bg-card p-6">
+    <h3 className="font-semibold mb-4">
+      Appearance
+    </h3>
+
+    <div className="space-y-4">
+      <button className="px-4 py-2 rounded-xl border">
+        Light Theme
+      </button>
+
+      <button className="px-4 py-2 rounded-xl border">
+        Dark Theme
+      </button>
+    </div>
+  </div>
+)}
+{activeSection === 'localization' && (
+  <div className="rounded-2xl border border-border bg-card p-6">
+    <h3 className="font-semibold mb-4">
+      Localization
+    </h3>
+
+    <select className="w-full h-10 rounded-xl border px-3">
+      <option>English</option>
+      <option>Hindi</option>
+      <option>Marathi</option>
+    </select>
+  </div>
+)}
           {!['store', 'notifications', 'delivery', 'payments', 'security'].includes(activeSection) && (
             <div className="rounded-2xl border border-border bg-card p-10 text-center fade-in">
               <div className="w-16 h-16 rounded-2xl bg-muted flex items-center justify-center mx-auto mb-4">
