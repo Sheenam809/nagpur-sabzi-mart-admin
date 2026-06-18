@@ -1,15 +1,37 @@
-import { useState } from 'react';
-import { Search, Layers, Phone, Download } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Layers, Phone, Download, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { bulkOrders } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { bulkOrdersApi } from '../../api/bulkOrders';
+import { ApiError } from '../../api/client';
 import type { BulkOrder } from '../types';
 import { cn } from '../../lib/utils';
 
 export default function BulkOrders() {
+  const [bulkOrders, setBulkOrders] = useState<BulkOrder[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
+
+  useEffect(() => {
+    async function loadBulkOrders() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await bulkOrdersApi.getAll();
+        setBulkOrders(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load bulk orders');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadBulkOrders();
+  }, []);
 
   const filtered = bulkOrders.filter(o =>
     !search ||
@@ -19,7 +41,7 @@ export default function BulkOrders() {
   );
 
   const totalRevenue = bulkOrders.reduce((sum, o) => sum + o.total, 0);
-  const avgOrderValue = Math.round(totalRevenue / bulkOrders.length);
+  const avgOrderValue = bulkOrders.length > 0 ? Math.round(totalRevenue / bulkOrders.length) : 0;
 
   const columns: Column<BulkOrder>[] = [
     {
@@ -101,6 +123,14 @@ export default function BulkOrders() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading bulk orders</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Bulk Orders"
         description="Wholesale and institutional orders from business customers"
@@ -114,7 +144,11 @@ export default function BulkOrders() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 h-[88px] animate-shimmer" />
+            ))
+          : [
           { label: 'Total Bulk Orders', value: bulkOrders.length, sub: 'All time', color: 'text-blue-600 dark:text-blue-400' },
           { label: 'Total Revenue', value: `₹${(totalRevenue / 1000).toFixed(0)}K`, sub: 'From bulk orders', color: 'text-green-600 dark:text-green-400' },
           { label: 'Avg. Order Size', value: `₹${avgOrderValue.toLocaleString()}`, sub: 'Per bulk order', color: 'text-amber-600 dark:text-amber-400' },
@@ -131,11 +165,20 @@ export default function BulkOrders() {
       {/* Business Clients */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4">Top Business Clients</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {bulkOrders
-            .sort((a, b) => b.total - a.total)
-            .slice(0, 3)
-            .map((order, i) => (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {Array(3).fill(0).map((_, i) => (
+              <div key={i} className="h-24 animate-shimmer rounded-xl" />
+            ))}
+          </div>
+        ) : bulkOrders.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No bulk orders yet</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {bulkOrders
+              .sort((a, b) => b.total - a.total)
+              .slice(0, 3)
+              .map((order, i) => (
               <div key={order.id} className="flex items-center gap-3 p-4 rounded-xl bg-secondary/50 border border-border">
                 <div className={cn(
                   'w-10 h-10 rounded-xl flex items-center justify-center shrink-0 font-bold text-white text-sm',
@@ -150,7 +193,8 @@ export default function BulkOrders() {
                 </div>
               </div>
             ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Search */}
@@ -170,6 +214,7 @@ export default function BulkOrders() {
       <DataTable
         data={filtered}
         columns={columns}
+        loading={loading}
         emptyState={
           <EmptyState
             icon={<Layers className="w-8 h-8" />}

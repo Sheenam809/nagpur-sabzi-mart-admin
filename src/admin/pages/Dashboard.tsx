@@ -4,22 +4,30 @@ import {
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  Package, AlertTriangle,
-  ArrowRight, Clock, CheckCircle,
-  XCircle, Truck, RefreshCw
+  AlertTriangle,
+  ArrowRight, RefreshCw, AlertCircle
 } from 'lucide-react';
 import KPICard from '../components/shared/KPICard';
 import StatusBadge from '../components/shared/StatusBadge';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
 import { cn } from '../../lib/utils';
-import {
-  kpiMetrics, revenueData, topProducts, recentOrders,
-  lowStockItems
-} from '../data/mockData';
-import type { Page } from '../types';
+import { analyticsApi } from '../../api/analytics';
+import { ordersApi } from '../../api/orders';
+import { ApiError } from '../../api/client';
+import type { Page, KPIMetric, Order, OrderStatus, RevenueDataPoint, TopProduct, LowStockItem } from '../types';
 
 interface DashboardProps {
   onNavigate: (page: Page) => void;
 }
+
+const statusColors: Record<OrderStatus, string> = {
+  Delivered: '#16a34a',
+  'In Transit': '#f59e0b',
+  Packed: '#3b82f6',
+  Placed: '#6366f1',
+  Confirmed: '#8b5cf6',
+  Cancelled: '#ef4444',
+};
 
 const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?: Array<{ name: string; value: number; color: string }>; label?: string }) => {
   if (!active || !payload?.length) return null;
@@ -39,14 +47,6 @@ const CustomTooltip = ({ active, payload, label }: { active?: boolean; payload?:
   );
 };
 
-const orderStatusData = [
-  { name: 'Delivered', value: 54, color: '#16a34a', icon: CheckCircle },
-  { name: 'In Transit', value: 22, color: '#f59e0b', icon: Truck },
-  { name: 'Packed', value: 12, color: '#3b82f6', icon: Package },
-  { name: 'Placed', value: 8, color: '#6366f1', icon: Clock },
-  { name: 'Cancelled', value: 4, color: '#ef4444', icon: XCircle },
-];
-
 function timeAgo(isoStr: string) {
   const mins = Math.floor((Date.now() - new Date(isoStr).getTime()) / 60000);
   if (mins < 60) return `${mins}m ago`;
@@ -54,27 +54,151 @@ function timeAgo(isoStr: string) {
   return `${hrs}h ago`;
 }
 
+function buildKpiMetrics(kpi: {
+  totalRevenue: number;
+  totalOrders: number;
+  activeCustomers: number;
+  avgOrderValue: number;
+}): KPIMetric[] {
+  return [
+    {
+      id: 'revenue',
+      label: 'Total Revenue',
+      value: `₹${kpi.totalRevenue.toLocaleString('en-IN')}`,
+      change: 0,
+      changeLabel: 'all time',
+      icon: 'TrendingUp',
+      color: 'green',
+      trend: 'neutral',
+    },
+    {
+      id: 'orders',
+      label: 'Total Orders',
+      value: kpi.totalOrders.toLocaleString('en-IN'),
+      change: 0,
+      changeLabel: 'all time',
+      icon: 'ShoppingCart',
+      color: 'blue',
+      trend: 'neutral',
+    },
+    {
+      id: 'customers',
+      label: 'Active Customers',
+      value: kpi.activeCustomers.toLocaleString('en-IN'),
+      change: 0,
+      changeLabel: 'currently active',
+      icon: 'Users',
+      color: 'amber',
+      trend: 'neutral',
+    },
+    {
+      id: 'aov',
+      label: 'Avg. Order Value',
+      value: `₹${kpi.avgOrderValue.toLocaleString('en-IN')}`,
+      change: 0,
+      changeLabel: 'all time',
+      icon: 'Receipt',
+      color: 'violet',
+      trend: 'neutral',
+    },
+  ];
+}
+
+function buildOrderStatusData(orders: Order[]) {
+  const today = new Date().toDateString();
+  let source = orders.filter(o => new Date(o.createdAt).toDateString() === today);
+  if (source.length === 0) source = orders;
+
+  const counts: Partial<Record<OrderStatus, number>> = {};
+  source.forEach(o => {
+    counts[o.status] = (counts[o.status] || 0) + 1;
+  });
+
+  const total = source.length;
+  if (total === 0) return [];
+
+  return (Object.entries(counts) as [OrderStatus, number][]).map(([name, count]) => ({
+    name,
+    value: Math.round((count / total) * 100),
+    color: statusColors[name] || '#6366f1',
+  }));
+}
+
 export default function Dashboard({ onNavigate }: DashboardProps) {
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [activeChart, setActiveChart] = useState<'revenue' | 'orders' | 'customers'>('revenue');
+  const [kpiMetrics, setKpiMetrics] = useState<KPIMetric[]>([]);
+  const [revenueData, setRevenueData] = useState<RevenueDataPoint[]>([]);
+  const [topProducts, setTopProducts] = useState<TopProduct[]>([]);
+  const [recentOrders, setRecentOrders] = useState<Order[]>([]);
+  const [lowStockItems, setLowStockItems] = useState<LowStockItem[]>([]);
+  const [orderStatusData, setOrderStatusData] = useState<{ name: string; value: number; color: string }[]>([]);
 
   useEffect(() => {
-    const t = setTimeout(() => setLoading(false), 800);
-    return () => clearTimeout(t);
+    async function loadDashboard() {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const [dashboard, revenue, orders] = await Promise.all([
+          analyticsApi.getDashboard(),
+          analyticsApi.getRevenue(7),
+          ordersApi.getAll(),
+        ]);
+
+        setKpiMetrics(buildKpiMetrics(dashboard.kpi));
+        setRevenueData(revenue);
+        setTopProducts(dashboard.topProducts);
+        setRecentOrders(dashboard.recentOrders);
+        setLowStockItems(dashboard.lowStockItems);
+        setOrderStatusData(buildOrderStatusData(orders));
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load dashboard data');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadDashboard();
   }, []);
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading dashboard</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       {/* KPI Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4">
-        {kpiMetrics.map(m => (
-          <KPICard key={m.id} metric={m} loading={loading} />
+        {(loading ? Array(4).fill(null) : kpiMetrics).map((m, i) => (
+          m ? (
+            <KPICard key={m.id} metric={m} loading={loading} />
+          ) : (
+            <KPICard
+              key={i}
+              metric={{
+                id: String(i),
+                label: '',
+                value: '',
+                change: 0,
+                changeLabel: '',
+                icon: 'TrendingUp',
+                color: 'green',
+                trend: 'neutral',
+              }}
+              loading
+            />
+          )
         ))}
       </div>
 
       {/* Revenue Chart + Order Status */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Revenue Chart */}
         <div className="xl:col-span-2 rounded-2xl border border-border bg-card p-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-5">
             <div>
@@ -101,6 +225,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
           {loading ? (
             <div className="h-56 animate-shimmer rounded-xl" />
+          ) : revenueData.length === 0 ? (
+            <div className="h-56 flex items-center justify-center text-sm text-muted-foreground">
+              No revenue data available
+            </div>
           ) : (
             <ResponsiveContainer width="100%" height={220}>
               <AreaChart data={revenueData} margin={{ top: 0, right: 0, left: -20, bottom: 0 }}>
@@ -150,67 +278,71 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           )}
         </div>
 
-        {/* Order Status Donut */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="text-base font-semibold text-foreground mb-1">Order Status</h3>
-          <p className="text-xs text-muted-foreground mb-4">Today's breakdown</p>
+          <p className="text-xs text-muted-foreground mb-4">Status breakdown</p>
 
           {loading ? (
             <div className="h-40 animate-shimmer rounded-xl mb-4" />
-          ) : (
-            <div className="flex justify-center mb-4">
-              <ResponsiveContainer width={160} height={160}>
-                <PieChart>
-                  <Pie
-                    data={orderStatusData}
-                    cx="50%"
-                    cy="50%"
-                    innerRadius={48}
-                    outerRadius={72}
-                    paddingAngle={3}
-                    dataKey="value"
-                    stroke="none"
-                  >
-                    {orderStatusData.map((entry, i) => (
-                      <Cell key={i} fill={entry.color} />
-                    ))}
-                  </Pie>
-                  <Tooltip
-                    formatter={(v: number) => [`${v}%`, '']}
-                    contentStyle={{
-                      background: 'hsl(var(--popover))',
-                      border: '1px solid hsl(var(--border))',
-                      borderRadius: '12px',
-                      fontSize: '12px',
-                    }}
-                  />
-                </PieChart>
-              </ResponsiveContainer>
+          ) : orderStatusData.length === 0 ? (
+            <div className="h-40 flex items-center justify-center text-sm text-muted-foreground">
+              No orders yet
             </div>
-          )}
-
-          <div className="space-y-2">
-            {orderStatusData.map(s => (
-              <div key={s.name} className="flex items-center justify-between">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
-                  <span className="text-xs text-muted-foreground">{s.name}</span>
-                </div>
-                <span className="text-xs font-semibold text-foreground">{s.value}%</span>
+          ) : (
+            <>
+              <div className="flex justify-center mb-4">
+                <ResponsiveContainer width={160} height={160}>
+                  <PieChart>
+                    <Pie
+                      data={orderStatusData}
+                      cx="50%"
+                      cy="50%"
+                      innerRadius={48}
+                      outerRadius={72}
+                      paddingAngle={3}
+                      dataKey="value"
+                      stroke="none"
+                    >
+                      {orderStatusData.map((entry, i) => (
+                        <Cell key={i} fill={entry.color} />
+                      ))}
+                    </Pie>
+                    <Tooltip
+                      formatter={(v: number) => [`${v}%`, '']}
+                      contentStyle={{
+                        background: 'hsl(var(--popover))',
+                        border: '1px solid hsl(var(--border))',
+                        borderRadius: '12px',
+                        fontSize: '12px',
+                      }}
+                    />
+                  </PieChart>
+                </ResponsiveContainer>
               </div>
-            ))}
-          </div>
+
+              <div className="space-y-2">
+                {orderStatusData.map(s => (
+                  <div key={s.name} className="flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: s.color }} />
+                      <span className="text-xs text-muted-foreground">{s.name}</span>
+                    </div>
+                    <span className="text-xs font-semibold text-foreground">{s.value}%</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Top Products + Category + Low Stock */}
+      {/* Top Products + Low Stock */}
       <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-        {/* Top Products Bar Chart */}
         <div className="xl:col-span-2 rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-5">
             <div>
               <h3 className="text-base font-semibold text-foreground">Top Products</h3>
-              <p className="text-xs text-muted-foreground mt-0.5">By units sold this month</p>
+              <p className="text-xs text-muted-foreground mt-0.5">By units sold</p>
             </div>
             <button
               onClick={() => onNavigate('products')}
@@ -222,6 +354,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
 
           {loading ? (
             <div className="h-52 animate-shimmer rounded-xl" />
+          ) : topProducts.length === 0 ? (
+            <div className="h-52 flex items-center justify-center text-sm text-muted-foreground">
+              No product data available
+            </div>
           ) : (
             <div className="space-y-3">
               {topProducts.map((p, i) => (
@@ -252,7 +388,6 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
           )}
         </div>
 
-        {/* Low Stock Alert */}
         <div className="rounded-2xl border border-border bg-card p-5">
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-2">
@@ -271,6 +406,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
               {Array(4).fill(0).map((_, i) => (
                 <div key={i} className="h-14 animate-shimmer rounded-xl" />
               ))}
+            </div>
+          ) : lowStockItems.length === 0 ? (
+            <div className="py-8 text-center text-sm text-muted-foreground">
+              All products are well stocked
             </div>
           ) : (
             <div className="space-y-2.5">
@@ -333,6 +472,10 @@ export default function Dashboard({ onNavigate }: DashboardProps) {
             {Array(5).fill(0).map((_, i) => (
               <div key={i} className="h-14 animate-shimmer rounded-xl" />
             ))}
+          </div>
+        ) : recentOrders.length === 0 ? (
+          <div className="p-8 text-center text-sm text-muted-foreground">
+            No recent orders
           </div>
         ) : (
           <div className="overflow-x-auto">

@@ -1,9 +1,12 @@
-import { useState } from 'react';
-import { Search, Star, ThumbsUp, Flag, Eye, MessageSquare } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Star, ThumbsUp, Flag, Eye, MessageSquare, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import EmptyState from '../components/shared/EmptyState';
-import { reviews } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { reviewsApi } from '../../api/reviews';
+import { ApiError } from '../../api/client';
+import type { Review } from '../types';
 import { cn } from '../../lib/utils';
 
 const statusFilters = ['All', 'published', 'pending', 'flagged'] as const;
@@ -29,9 +32,29 @@ function timeAgo(isoStr: string) {
 }
 
 export default function Reviews() {
+  const [reviews, setReviews] = useState<Review[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<typeof statusFilters[number]>('All');
   const [ratingFilter, setRatingFilter] = useState(0);
+
+  useEffect(() => {
+    async function loadReviews() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await reviewsApi.getAll();
+        setReviews(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load reviews');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadReviews();
+  }, []);
 
   const filtered = reviews.filter(r => {
     const matchSearch = !search ||
@@ -42,15 +65,27 @@ export default function Reviews() {
     return matchSearch && matchStatus && matchRating;
   });
 
-  const avgRating = (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1);
+  const avgRating = reviews.length > 0
+    ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
+    : '0.0';
   const ratingDist = [5, 4, 3, 2, 1].map(r => ({
     star: r,
     count: reviews.filter(rev => rev.rating === r).length,
-    pct: Math.round((reviews.filter(rev => rev.rating === r).length / reviews.length) * 100),
+    pct: reviews.length > 0
+      ? Math.round((reviews.filter(rev => rev.rating === r).length / reviews.length) * 100)
+      : 0,
   }));
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading reviews</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Reviews"
         description={`${reviews.length} customer reviews across all products`}
@@ -66,7 +101,10 @@ export default function Reviews() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <div className="rounded-2xl border border-border bg-card p-5">
           <h3 className="text-sm font-semibold text-foreground mb-4">Rating Distribution</h3>
-          <div className="flex items-center gap-6">
+          {loading ? (
+            <div className="h-40 animate-shimmer rounded-xl" />
+          ) : (
+            <div className="flex items-center gap-6">
             <div className="text-center shrink-0">
               <p className="text-5xl font-bold text-foreground">{avgRating}</p>
               <StarRating rating={Math.round(parseFloat(avgRating))} />
@@ -92,10 +130,15 @@ export default function Reviews() {
               ))}
             </div>
           </div>
+          )}
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          {[
+          {loading
+            ? Array(4).fill(0).map((_, i) => (
+                <div key={i} className="rounded-xl border border-border p-4 h-24 animate-shimmer" />
+              ))
+            : [
             { label: 'Published', value: reviews.filter(r => r.status === 'published').length, color: 'text-green-600', bg: 'bg-green-50 dark:bg-green-900/20' },
             { label: 'Pending', value: reviews.filter(r => r.status === 'pending').length, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-900/20' },
             { label: 'Flagged', value: reviews.filter(r => r.status === 'flagged').length, color: 'text-red-600', bg: 'bg-red-50 dark:bg-red-900/20' },
@@ -140,7 +183,13 @@ export default function Reviews() {
       </div>
 
       {/* Reviews List */}
-      {filtered.length === 0 ? (
+      {loading ? (
+        <div className="space-y-3">
+          {Array(3).fill(0).map((_, i) => (
+            <div key={i} className="h-32 animate-shimmer rounded-2xl" />
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
         <div className="rounded-xl border border-border bg-card">
           <EmptyState
             icon={<MessageSquare className="w-8 h-8" />}

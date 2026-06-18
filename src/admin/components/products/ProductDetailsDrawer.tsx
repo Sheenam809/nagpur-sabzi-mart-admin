@@ -1,4 +1,4 @@
-import { X, Star, TrendingUp, ShoppingCart, AlertCircle } from 'lucide-react';
+import { X, Star, TrendingUp, AlertCircle } from 'lucide-react';
 import StatusBadge from '../shared/StatusBadge';
 import type { Product } from '../../types';
 import { cn } from '../../../lib/utils';

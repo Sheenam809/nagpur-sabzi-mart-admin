@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Search, CreditCard, Download, RefreshCw } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, CreditCard, Download, RefreshCw, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { payments } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { paymentsApi } from '../../api/payments';
+import { ApiError } from '../../api/client';
 import type { Payment } from '../types';
 import { cn } from '../../lib/utils';
 
@@ -17,9 +19,29 @@ const methodColors: Record<string, string> = {
 };
 
 export default function Payments() {
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'success' | 'pending' | 'failed' | 'refunded'>('All');
   const [methodFilter, setMethodFilter] = useState('All');
+
+  useEffect(() => {
+    async function loadPayments() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await paymentsApi.getAll();
+        setPayments(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load payments');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadPayments();
+  }, []);
 
   const filtered = payments.filter(p => {
     const matchSearch = !search ||
@@ -32,7 +54,9 @@ export default function Payments() {
   });
 
   const totalRevenue = payments.filter(p => p.status === 'success').reduce((sum, p) => sum + p.amount, 0);
-  const successRate = Math.round((payments.filter(p => p.status === 'success').length / payments.length) * 100);
+  const successRate = payments.length > 0
+    ? Math.round((payments.filter(p => p.status === 'success').length / payments.length) * 100)
+    : 0;
 
   const methodBreakdown = ['UPI', 'Card', 'COD', 'Wallet', 'Net Banking'].map(method => ({
     method,
@@ -122,6 +146,14 @@ export default function Payments() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading payments</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Payments"
         description="Transaction history and payment analytics"
@@ -135,7 +167,11 @@ export default function Payments() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {[
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 h-[88px] animate-shimmer" />
+            ))
+          : [
           { label: 'Total Collected', value: `₹${(totalRevenue / 1000).toFixed(0)}K`, sub: 'Successful payments', color: 'text-green-600 dark:text-green-400' },
           { label: 'Success Rate', value: `${successRate}%`, sub: 'Payment success', color: 'text-blue-600 dark:text-blue-400' },
           { label: 'Pending', value: payments.filter(p => p.status === 'pending').length, sub: 'Awaiting settlement', color: 'text-amber-600 dark:text-amber-400' },
@@ -152,8 +188,15 @@ export default function Payments() {
       {/* Payment Method Breakdown */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4">Payment Method Breakdown</h3>
-        <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
-          {methodBreakdown.map(m => (
+        {loading ? (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {Array(5).fill(0).map((_, i) => (
+              <div key={i} className="h-28 animate-shimmer rounded-xl" />
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+            {methodBreakdown.map(m => (
             <div
               key={m.method}
               className={cn(
@@ -172,7 +215,8 @@ export default function Payments() {
               <p className="text-xs font-medium text-primary mt-0.5">₹{m.amount.toLocaleString()}</p>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Filters */}
@@ -208,6 +252,7 @@ export default function Payments() {
       <DataTable
         data={filtered}
         columns={columns}
+        loading={loading}
         emptyState={
           <EmptyState
             icon={<CreditCard className="w-8 h-8" />}

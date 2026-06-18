@@ -1,12 +1,14 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import CustomerDetailsDrawer from '../components/customers/CustomerDetailsDrawer';
 import EditCustomerModal from '../components/customers/EditCustomerModal';
-import { Search, Users, UserCheck, UserX, TrendingUp, Phone, Mail, MapPin } from 'lucide-react';
+import { Search, Users, UserCheck, UserX, TrendingUp, Phone, Mail, MapPin, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { customers } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { customersApi } from '../../api/customers';
+import { ApiError } from '../../api/client';
 import type { Customer } from '../types';
 import { cn } from '../../lib/utils';
 
@@ -14,12 +16,31 @@ import { cn } from '../../lib/utils';
 const statusFilters = ['All', 'active', 'new', 'inactive'] as const;
 
 export default function Customers() {
+  const [customers, setCustomers] = useState<Customer[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<'All' | 'active' | 'new' | 'inactive'>('All');
 const [showEditDialog, setShowEditDialog] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [showCustomerDrawer, setShowCustomerDrawer] = useState(false);
 
+  useEffect(() => {
+    async function loadCustomers() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await customersApi.getAll();
+        setCustomers(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load customers');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadCustomers();
+  }, []);
 
   const filtered = customers.filter(c => {
     const matchSearch = !search ||
@@ -139,6 +160,14 @@ const [showEditDialog, setShowEditDialog] = useState(false);
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading customers</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Customers"
         description={`${customers.length} registered customers in Nagpur`}
@@ -146,24 +175,37 @@ const [showEditDialog, setShowEditDialog] = useState(false);
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {statsCards.map(card => (
-          <div key={card.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-            <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', colorMap[card.color])}>
-              <card.icon className="w-4.5 h-4.5" style={{ width: '18px', height: '18px' }} />
-            </div>
-            <div>
-              <p className={cn('text-2xl font-bold', colorMap[card.color].split(' ')[0])}>{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-            </div>
-          </div>
-        ))}
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 h-[76px] animate-shimmer" />
+            ))
+          : statsCards.map(card => (
+              <div key={card.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+                <div className={cn('w-9 h-9 rounded-xl flex items-center justify-center shrink-0', colorMap[card.color])}>
+                  <card.icon className="w-4.5 h-4.5" style={{ width: '18px', height: '18px' }} />
+                </div>
+                <div>
+                  <p className={cn('text-2xl font-bold', colorMap[card.color].split(' ')[0])}>{card.value}</p>
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                </div>
+              </div>
+            ))}
       </div>
 
       {/* Top Customers */}
       <div className="rounded-2xl border border-border bg-card p-5">
         <h3 className="text-sm font-semibold text-foreground mb-4">Top Customers by Spend</h3>
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
-          {[...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 3).map((c, i) => (
+        {loading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {Array(3).fill(0).map((_, i) => (
+              <div key={i} className="h-24 animate-shimmer rounded-xl" />
+            ))}
+          </div>
+        ) : customers.length === 0 ? (
+          <p className="text-sm text-muted-foreground">No customers yet</p>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3">
+            {[...customers].sort((a, b) => b.totalSpent - a.totalSpent).slice(0, 3).map((c, i) => (
             <div key={c.id} className={cn(
               'flex items-center gap-3 p-4 rounded-xl border',
               i === 0
@@ -188,7 +230,8 @@ const [showEditDialog, setShowEditDialog] = useState(false);
               </div>
             </div>
           ))}
-        </div>
+          </div>
+        )}
       </div>
 
       {/* Filter + Search */}
@@ -224,6 +267,7 @@ const [showEditDialog, setShowEditDialog] = useState(false);
       <DataTable
         data={filtered}
         columns={columns}
+        loading={loading}
         emptyState={
           <EmptyState
             icon={<Users className="w-8 h-8" />}

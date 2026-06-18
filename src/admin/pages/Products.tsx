@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Search, Plus, Package, Star, TrendingUp, MoreHorizontal } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Plus, Package, Star, TrendingUp, MoreHorizontal, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { products as initialProducts } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { productsApi } from '../../api/products';
+import { ApiError } from '../../api/client';
 import type { Product } from '../types';
 import { cn } from '../../lib/utils';
 import AddProductDialog from '../components/products/AddProductDialog';
@@ -17,7 +19,10 @@ import InventoryManager from '../components/products/InventoryManager';
 const categories = ['All', 'Vegetables', 'Fruits', 'Leafy Greens', 'Spices'];
 
 export default function Products() {
-  const [products, setProducts] = useState(initialProducts);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [actionError, setActionError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [categoryFilter, setCategoryFilter] = useState('All');
   const [statusFilter, setStatusFilter] = useState('All');
@@ -31,6 +36,23 @@ export default function Products() {
   const [showInventoryManager, setShowInventoryManager] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadProducts() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await productsApi.getAll();
+        setProducts(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load products');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadProducts();
+  }, []);
 
   const filtered = products.filter(p => {
     const matchSearch = !search || p.name.toLowerCase().includes(search.toLowerCase());
@@ -46,26 +68,57 @@ export default function Products() {
     { label: 'Out of Stock', value: products.filter(p => p.status === 'out_of_stock').length.toString(), icon: Package, color: 'text-red-600' },
   ];
 
-  const handleAddProduct = (newProduct: Omit<Product, 'id'>) => {
-    const product: Product = {
-      ...newProduct,
-      id: `p${Date.now()}`,
-    };
-    setProducts([...products, product]);
-    setShowAddDialog(false);
+  const handleAddProduct = async (newProduct: Omit<Product, 'id'>) => {
+    try {
+      setActionError(null);
+      const product = await productsApi.create(newProduct);
+      setProducts(prev => [product, ...prev]);
+      setShowAddDialog(false);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to add product');
+    }
   };
 
-  const handleEditProduct = (updatedProduct: Product) => {
-    setProducts(products.map(p => p.id === updatedProduct.id ? updatedProduct : p));
-    setShowEditDialog(false);
-    setSelectedProduct(null);
+  const handleEditProduct = async (updatedProduct: Product) => {
+    try {
+      setActionError(null);
+      const product = await productsApi.update(updatedProduct.id, updatedProduct);
+      setProducts(prev => prev.map(p => p.id === product.id ? product : p));
+      setShowEditDialog(false);
+      setSelectedProduct(null);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to update product');
+    }
   };
 
-  const handleDeleteProduct = () => {
-    if (selectedProduct) {
-      setProducts(products.filter(p => p.id !== selectedProduct.id));
+  const handleDeleteProduct = async () => {
+    if (!selectedProduct) return;
+
+    try {
+      setActionError(null);
+      await productsApi.delete(selectedProduct.id);
+      setProducts(prev => prev.filter(p => p.id !== selectedProduct.id));
       setShowDeleteConfirm(false);
       setSelectedProduct(null);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to delete product');
+    }
+  };
+
+  const handleUpdateProducts = async (updatedProducts: Product[]) => {
+    try {
+      setActionError(null);
+      const changed = updatedProducts.filter(updated => {
+        const original = products.find(p => p.id === updated.id);
+        return original && original.stock !== updated.stock;
+      });
+
+      await Promise.all(
+        changed.map(p => productsApi.update(p.id, { stock: p.stock, status: p.status }))
+      );
+      setProducts(updatedProducts);
+    } catch (err) {
+      setActionError(err instanceof ApiError ? err.message : 'Failed to update inventory');
     }
   };
 
@@ -208,6 +261,14 @@ export default function Products() {
 
   return (
     <div className="space-y-6">
+      {(error || actionError) && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error</AlertTitle>
+          <AlertDescription>{error || actionError}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Products"
         description="Manage your product catalog, pricing, and inventory"
@@ -238,17 +299,21 @@ export default function Products() {
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
-        {statsCards.map(card => (
-          <div key={card.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
-            <div className={cn('w-8 h-8 rounded-xl bg-muted flex items-center justify-center', card.color)}>
-              <card.icon className="w-4 h-4" />
-            </div>
-            <div>
-              <p className={cn('text-xl font-bold', card.color)}>{card.value}</p>
-              <p className="text-xs text-muted-foreground">{card.label}</p>
-            </div>
-          </div>
-        ))}
+        {loading
+          ? Array(4).fill(0).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-4 h-[72px] animate-shimmer" />
+            ))
+          : statsCards.map(card => (
+              <div key={card.label} className="rounded-xl border border-border bg-card p-4 flex items-center gap-3">
+                <div className={cn('w-8 h-8 rounded-xl bg-muted flex items-center justify-center', card.color)}>
+                  <card.icon className="w-4 h-4" />
+                </div>
+                <div>
+                  <p className={cn('text-xl font-bold', card.color)}>{card.value}</p>
+                  <p className="text-xs text-muted-foreground">{card.label}</p>
+                </div>
+              </div>
+            ))}
       </div>
 
       {/* Filters */}
@@ -300,6 +365,7 @@ export default function Products() {
       <DataTable
         data={filtered}
         columns={columns}
+        loading={loading}
         emptyState={
           <EmptyState
             icon={<Package className="w-8 h-8" />}
@@ -349,7 +415,7 @@ export default function Products() {
         open={showInventoryManager}
         onOpenChange={setShowInventoryManager}
         products={products}
-        onUpdateProducts={setProducts}
+        onUpdateProducts={handleUpdateProducts}
       />
     </div>
   );

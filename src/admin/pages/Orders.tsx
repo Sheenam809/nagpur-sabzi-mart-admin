@@ -1,10 +1,12 @@
-import { useState } from 'react';
-import { Search, Download, MoreVertical, ShoppingCart } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Search, Download, MoreVertical, ShoppingCart, AlertCircle } from 'lucide-react';
 import PageHeader from '../components/shared/PageHeader';
 import StatusBadge from '../components/shared/StatusBadge';
 import DataTable, { Column } from '../components/shared/DataTable';
 import EmptyState from '../components/shared/EmptyState';
-import { allOrders } from '../data/mockData';
+import { Alert, AlertDescription, AlertTitle } from '../../components/ui/alert';
+import { ordersApi } from '../../api/orders';
+import { ApiError } from '../../api/client';
 import type { Order, OrderStatus, PaymentStatus } from '../types';
 import { cn } from '../../lib/utils';
 import OrderDetailsDrawer from '../components/orders/OrderDetailsDrawer';
@@ -14,6 +16,9 @@ const statuses: Array<OrderStatus | 'All'> = ['All', 'Placed', 'Confirmed', 'Pac
 const paymentStatuses: Array<PaymentStatus | 'All'> = ['All', 'Paid', 'Pending', 'Failed', 'Refunded'];
 
 export default function Orders() {
+  const [allOrders, setAllOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');
   const [statusFilter, setStatusFilter] = useState<OrderStatus | 'All'>('All');
   const [paymentFilter, setPaymentFilter] = useState<PaymentStatus | 'All'>('All');
@@ -22,6 +27,23 @@ export default function Orders() {
   const [showDetailsDrawer, setShowDetailsDrawer] = useState(false);
   const [showTimelineDrawer, setShowTimelineDrawer] = useState(false);
   const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function loadOrders() {
+      try {
+        setLoading(true);
+        setError(null);
+        const data = await ordersApi.getAll();
+        setAllOrders(data);
+      } catch (err) {
+        setError(err instanceof ApiError ? err.message : 'Failed to load orders');
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    loadOrders();
+  }, []);
 
   const filtered = allOrders.filter(o => {
     const matchSearch = !search ||
@@ -89,7 +111,9 @@ export default function Orders() {
   const stats = {
     totalOrders: allOrders.length,
     totalRevenue: allOrders.reduce((sum, o) => sum + o.total, 0),
-    avgOrderValue: Math.round(allOrders.reduce((sum, o) => sum + o.total, 0) / allOrders.length),
+    avgOrderValue: allOrders.length > 0
+      ? Math.round(allOrders.reduce((sum, o) => sum + o.total, 0) / allOrders.length)
+      : 0,
     deliveredCount: allOrders.filter(o => o.status === 'Delivered').length,
     cancelledCount: allOrders.filter(o => o.status === 'Cancelled').length,
     paidCount: allOrders.filter(o => o.paymentStatus === 'Paid').length,
@@ -226,6 +250,14 @@ export default function Orders() {
 
   return (
     <div className="space-y-6">
+      {error && (
+        <Alert variant="destructive">
+          <AlertCircle className="h-4 w-4" />
+          <AlertTitle>Error loading orders</AlertTitle>
+          <AlertDescription>{error}</AlertDescription>
+        </Alert>
+      )}
+
       <PageHeader
         title="Orders"
         description={`${filtered.length} orders • ${filtered.length > 0 ? `₹${filtered.reduce((sum, o) => sum + o.total, 0).toLocaleString()} total revenue` : 'No orders'}`}
@@ -242,30 +274,38 @@ export default function Orders() {
 
       {/* Stats Grid */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Total Orders</p>
-          <p className="text-lg font-bold text-foreground">{stats.totalOrders}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
-          <p className="text-lg font-bold text-green-600">₹{(stats.totalRevenue / 1000).toFixed(1)}K</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Avg Order Value</p>
-          <p className="text-lg font-bold text-blue-600">₹{stats.avgOrderValue}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Delivered</p>
-          <p className="text-lg font-bold text-emerald-600">{stats.deliveredCount}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Cancelled</p>
-          <p className="text-lg font-bold text-red-600">{stats.cancelledCount}</p>
-        </div>
-        <div className="rounded-xl border border-border bg-card p-3">
-          <p className="text-xs text-muted-foreground mb-1">Paid</p>
-          <p className="text-lg font-bold text-teal-600">{stats.paidCount}</p>
-        </div>
+        {loading
+          ? Array(6).fill(0).map((_, i) => (
+              <div key={i} className="rounded-xl border border-border bg-card p-3 h-[68px] animate-shimmer" />
+            ))
+          : (
+            <>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Total Orders</p>
+                <p className="text-lg font-bold text-foreground">{stats.totalOrders}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Total Revenue</p>
+                <p className="text-lg font-bold text-green-600">₹{(stats.totalRevenue / 1000).toFixed(1)}K</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Avg Order Value</p>
+                <p className="text-lg font-bold text-blue-600">₹{stats.avgOrderValue}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Delivered</p>
+                <p className="text-lg font-bold text-emerald-600">{stats.deliveredCount}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Cancelled</p>
+                <p className="text-lg font-bold text-red-600">{stats.cancelledCount}</p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-3">
+                <p className="text-xs text-muted-foreground mb-1">Paid</p>
+                <p className="text-lg font-bold text-teal-600">{stats.paidCount}</p>
+              </div>
+            </>
+          )}
       </div>
 
       {/* Filters */}
@@ -363,6 +403,7 @@ export default function Orders() {
       <DataTable
         data={filtered}
         columns={columns}
+        loading={loading}
         emptyState={
           <EmptyState
             icon={<ShoppingCart className="w-8 h-8" />}
